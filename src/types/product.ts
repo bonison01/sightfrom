@@ -1,3 +1,9 @@
+export interface Variant {
+  id: string;
+  size: string;
+  color: string;
+  stock_quantity: number;
+}
 
 export interface Product {
   id: string;
@@ -11,9 +17,22 @@ export interface Product {
   features: string[] | null;
   ingredients: string | null;
   offers: string | null;
-  stock_quantity: number | null;
+  stock_quantity: number | null;  // You might want to deprecate or ignore this if variants are used
   is_active: boolean | null;
   featured: boolean | null;
   created_at: string;
   updated_at: string;
+
+  variants?: Variant[];  // NEW
+}
+export interface VariantType {
+  id: string;
+  product_id: string;
+  color?: string | null;
+  size?: string | null;
+  price?: number | null;
+  stock_quantity?: number | null;
+  image_url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }

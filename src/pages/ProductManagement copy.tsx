@@ -1,3 +1,6 @@
+//sight/src/pages/ProductManagement.tsx
+
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -13,16 +16,6 @@ import ProductForm from '@/components/ProductManagementComponents/ProductForm';
 import CSVUpload from '@/components/ProductManagementComponents/CSVUpload';
 import { Product } from '@/types/product';
 
-// Variant input type
-interface VariantInput {
-  id?: string;
-  color?: string | null;
-  size?: string | null;
-  price?: number | null;
-  stock_quantity?: number | null;
-  image_url?: string | null;
-}
-
 const ProductManagement = () => {
   const { user, isAdmin, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -32,44 +25,42 @@ const ProductManagement = () => {
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingImages, setEditingImages] = useState<string[]>([]);
-  const [editingVariants, setEditingVariants] = useState<VariantInput[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [showCSVUpload, setShowCSVUpload] = useState(false);
   const [newProductImages, setNewProductImages] = useState<string[]>([]);
-  const [newProductVariants, setNewProductVariants] = useState<VariantInput[]>([]);
 
-  // ✅ Initialize newProduct with null-safe defaults
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
-  id: undefined, // or null
-  name: '',
-  description: '',
-  price: 0,
-  offer_price: null,
-  image_url: null,
-  image_urls: null,
-  category: null,
-  features: null,
-  ingredients: null,
-  offers: null,
-  stock_quantity: 0,
-  is_active: true,
-  featured: false,
-  created_at: null,
-  updated_at: null,
-});
+  // ✅ Initialize with null for category
+  const [newProduct, setNewProduct] = useState<Product>({
+    id: '',
+    name: '',
+    description: '',
+    price: 0,
+    offer_price: null,
+    image_url: null,
+    image_urls: null,
+    category: null, // ✅ allow null category
+    features: null,
+    ingredients: null,
+    offers: null,
+    stock_quantity: 0,
+    is_active: true,
+    featured: false,
+    created_at: null,
+    updated_at: null,
+  });
 
-
-
-  // 🔒 Redirect if not admin
+  // Redirect if not admin
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
       navigate('/auth?admin=true');
     }
   }, [user, isAdmin, loading, navigate]);
 
-  // 🔄 Fetch products on mount
+  // Fetch products
   useEffect(() => {
-    if (isAdmin) fetchProducts();
+    if (isAdmin) {
+      fetchProducts();
+    }
   }, [isAdmin]);
 
   const fetchProducts = async () => {
@@ -84,9 +75,9 @@ const ProductManagement = () => {
     } catch (error: any) {
       console.error('Error fetching products:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to fetch products',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to fetch products",
+        variant: "destructive",
       });
     } finally {
       setLoadingProducts(false);
@@ -100,46 +91,26 @@ const ProductManagement = () => {
     } catch (error) {
       console.error('Error signing out:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to sign out',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to sign out",
+        variant: "destructive",
       });
     }
   };
 
-  // 🧩 Edit existing product
-  const handleEdit = async (product: Product) => {
+  const handleEdit = (product: Product) => {
     setEditingProduct(product);
-
     const existingImages: string[] = [];
     if (product.image_url) existingImages.push(product.image_url);
     if (product.image_urls) existingImages.push(...product.image_urls);
     setEditingImages(existingImages);
-
-    const { data: variants, error } = await supabase
-      .from('product_variants')
-      .select('*')
-      .eq('product_id', product.id);
-
-    if (error) {
-      console.error('Error fetching variants:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch product variants',
-        variant: 'destructive',
-      });
-    } else {
-      setEditingVariants(variants || []);
-    }
   };
 
   const handleCancelEdit = () => {
     setEditingProduct(null);
     setEditingImages([]);
-    setEditingVariants([]);
   };
 
-  // 🗑️ Delete product
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
@@ -148,156 +119,92 @@ const ProductManagement = () => {
       if (error) throw error;
 
       setProducts(products.filter((product) => product.id !== id));
-      toast({ title: 'Success', description: 'Product deleted successfully' });
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
     } catch (error: any) {
       console.error('Error deleting product:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to delete product',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to delete product",
+        variant: "destructive",
       });
     }
   };
 
-  // ➕ CREATE product with variants
+  const handleUpdate = async () => {
+    if (!editingProduct) return;
+
+    try {
+      const productData = {
+        ...editingProduct,
+        category: editingProduct.category || null, // ✅ enforce null instead of ""
+        image_url: editingImages.length > 0 ? editingImages[0] : null,
+        image_urls: editingImages.length > 1 ? editingImages.slice(1) : null,
+      };
+
+      const { error } = await supabase
+        .from('products')
+        .update(productData)
+        .eq('id', editingProduct.id);
+
+      if (error) throw error;
+
+      setProducts(products.map((p) => (p.id === editingProduct.id ? productData : p)));
+      setEditingProduct(null);
+      setEditingImages([]);
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+    } catch (error: any) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleCreate = async () => {
   try {
     const now = new Date().toISOString();
 
-    // Prepare product data without id
     const productData = {
       ...newProduct,
       category: newProduct.category || null,
       image_url: newProductImages.length > 0 ? newProductImages[0] : null,
       image_urls: newProductImages.length > 1 ? newProductImages.slice(1) : null,
-      created_at: now,
+      created_at: now,     // ✅ add timestamps manually
       updated_at: now,
     };
 
-    // Remove id field if present
-    const { id, variants, ...insertData } = productData as any;
+    const { id, ...insertData } = productData;
 
-    // Insert product
     const { data, error } = await supabase
       .from('products')
       .insert([insertData])
       .select();
 
     if (error) throw error;
-    const createdProduct = data[0];
 
-    // Insert variants linked to the created product
-    if (newProductVariants.length > 0) {
-      const variantInserts = newProductVariants.map((v) => ({
-        product_id: createdProduct.id,
-        color: v.color || null,
-        size: v.size || null,
-        price: v.price || null,
-        stock_quantity: v.stock_quantity || 0,
-        image_url: v.image_url || null,
-        created_at: now,
-      }));
-
-      const { error: variantError } = await supabase
-        .from('product_variants')
-        .insert(variantInserts);
-
-      if (variantError) throw variantError;
-    }
-
-    // Update local state and reset form
-    setProducts([...products, createdProduct]);
+    setProducts([...products, data[0]]);
     setIsCreating(false);
     setNewProductImages([]);
-    setNewProductVariants([]);
-
     toast({ title: "Success", description: "Product created successfully" });
   } catch (error: any) {
-    console.error('Error creating product or variants:', error);
+    console.error('Error creating product:', error);
     toast({
       title: "Error",
-      description: "Failed to create product or variants",
+      description: "Failed to create product",
       variant: "destructive",
     });
   }
 };
 
 
-  // ✏️ UPDATE product + variants (fixes stock sync)
-  const handleUpdate = async () => {
-    if (!editingProduct) return;
-    try {
-      const now = new Date().toISOString();
-
-      const updateData = {
-        ...editingProduct,
-        category: editingProduct.category || null,
-        image_url: editingImages[0] || null,
-        image_urls: editingImages.slice(1) || null,
-        updated_at: now,
-      };
-
-      const { error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', editingProduct.id);
-
-      if (error) throw error;
-
-      // ✅ Update or insert variants individually (preserve IDs)
-      for (const variant of editingVariants) {
-  const isUUID = typeof variant.id === "string" && /^[0-9a-fA-F-]{36}$/.test(variant.id);
-
-  if (variant.id && isUUID) {
-    // ✅ Update existing variant
-    const { error: updateError } = await supabase
-      .from('product_variants')
-      .update({
-        color: variant.color || null,
-        size: variant.size || null,
-        price: variant.price || null,
-        stock_quantity: variant.stock_quantity || 0,
-        image_url: variant.image_url || null,
-        updated_at: now,
-      })
-      .eq('id', variant.id);
-    if (updateError) throw updateError;
-  } else {
-    // ✅ Insert new variant
-    const { error: insertError } = await supabase
-      .from('product_variants')
-      .insert([{
-        product_id: editingProduct.id,
-        color: variant.color || null,
-        size: variant.size || null,
-        price: variant.price || null,
-        stock_quantity: variant.stock_quantity || 0,
-        image_url: variant.image_url || null,
-        created_at: now,
-      }]);
-    if (insertError) throw insertError;
-  }
-}
-
-
-      await fetchProducts();
-      handleCancelEdit();
-
-      toast({
-        title: 'Success',
-        description: 'Product and variants updated successfully',
-      });
-    } catch (error: any) {
-      console.error('Error updating product and variants:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update product or variants',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // 📦 CSV upload callback
   const handleCSVProductsUploaded = (uploadedProducts: Product[]) => {
     setProducts([...uploadedProducts, ...products]);
     setShowCSVUpload(false);
@@ -316,7 +223,6 @@ const ProductManagement = () => {
 
   if (!user || !isAdmin) return null;
 
-  // ✅ UI
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -330,18 +236,28 @@ const ProductManagement = () => {
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Button onClick={() => navigate('/')} variant="outline">
-                <Home className="h-4 w-4 mr-2" /> Home
+              <Button
+                onClick={() => navigate('/')}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <Home className="h-4 w-4" />
+                <span>Home</span>
               </Button>
-              <Button onClick={handleSignOut} variant="outline">
-                <LogOut className="h-4 w-4 mr-2" /> Sign Out
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main */}
+      {/* Main Content */}
       <main className="w-full py-6 px-4">
         <div className="w-full">
           <Tabs defaultValue="orders" className="space-y-6">
@@ -363,11 +279,17 @@ const ProductManagement = () => {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Products</h2>
                 <div className="flex items-center space-x-2">
-                  <Button onClick={() => setShowCSVUpload(true)} variant="outline">
-                    <Upload className="h-4 w-4 mr-2" /> Bulk Upload
+                  <Button
+                    onClick={() => setShowCSVUpload(true)}
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Upload className="h-4 w-4" />
+                    <span>Bulk Upload</span>
                   </Button>
-                  <Button onClick={() => setIsCreating(true)}>
-                    <Plus className="h-4 w-4 mr-2" /> Add Product
+                  <Button onClick={() => setIsCreating(true)} className="flex items-center space-x-2">
+                    <Plus className="h-4 w-4" />
+                    <span>Add Product</span>
                   </Button>
                 </div>
               </div>
@@ -383,17 +305,19 @@ const ProductManagement = () => {
 
           {/* CSV Upload Modal */}
           {showCSVUpload && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
               <div className="relative p-4 w-full max-w-2xl">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowCSVUpload(false)}
-                  className="absolute top-2 right-2 z-10"
-                >
-                  ×
-                </Button>
-                <CSVUpload onProductsUploaded={handleCSVProductsUploaded} />
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCSVUpload(false)}
+                    className="absolute top-2 right-2 z-10"
+                  >
+                    ×
+                  </Button>
+                  <CSVUpload onProductsUploaded={handleCSVProductsUploaded} />
+                </div>
               </div>
             </div>
           )}
@@ -403,10 +327,8 @@ const ProductManagement = () => {
             <ProductForm
               product={editingProduct}
               images={editingImages}
-              variants={editingVariants}
               onProductChange={setEditingProduct}
               onImagesChange={setEditingImages}
-              onVariantsChange={setEditingVariants}
               onSave={handleUpdate}
               onCancel={handleCancelEdit}
               isEditing={true}
@@ -418,15 +340,12 @@ const ProductManagement = () => {
             <ProductForm
               product={newProduct}
               images={newProductImages}
-              variants={newProductVariants}
               onProductChange={setNewProduct}
               onImagesChange={setNewProductImages}
-              onVariantsChange={setNewProductVariants}
               onSave={handleCreate}
               onCancel={() => {
                 setIsCreating(false);
                 setNewProductImages([]);
-                setNewProductVariants([]);
               }}
               isEditing={false}
             />

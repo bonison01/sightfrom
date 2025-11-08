@@ -1,36 +1,99 @@
-
+import React from 'react';
 import { Product } from '@/types/product';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Save, X } from 'lucide-react';
-import ImageUpload from '@/components/ImageUpload';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { X, Save } from 'lucide-react';
+import ImageUpload from './ImageUpload';
 
-interface ProductFormProps {
-  product: Product;
+// Helper arrays for variants (you can adjust as needed)
+const sizes = ['S', 'M', 'L', 'XL'];
+const colors = ['Red', 'Green', 'Blue', 'Black', 'White'];
+
+const categories = [
+  { value: 'chicken', label: 'Chicken' },
+  { value: 'red_meat', label: 'Red Meat' },
+  { value: 'chilli_condiments', label: 'Chilli & Condiments' },
+  { value: 'other', label: 'Other' },
+];
+
+// ✅ Variant interface (used for handling variants)
+export interface VariantInput {
+  id?: string;
+  color?: string | null;
+  size?: string | null;
+  price?: number | null;
+  stock_quantity?: number | null;
+  image_url?: string | null;
+}
+
+// ✅ Props interface
+export interface ProductFormProps {
+  product: Partial<Product>; // ✅ now allows missing fields (e.g., id)
   images: string[];
-  onProductChange: (product: Product) => void;
-  onImagesChange: (images: string[]) => void;
-  onSave: () => void;
+  variants: VariantInput[];
+  onProductChange: React.Dispatch<React.SetStateAction<Partial<Product>>>; // ✅ match above
+  onImagesChange: React.Dispatch<React.SetStateAction<string[]>>;
+  onVariantsChange: React.Dispatch<React.SetStateAction<VariantInput[]>>;
+  onSave: () => Promise<void>;
   onCancel: () => void;
   isEditing: boolean;
   saving?: boolean;
 }
 
-const ProductForm = ({ 
-  product, 
-  images, 
-  onProductChange, 
-  onImagesChange, 
-  onSave, 
-  onCancel, 
+
+const ProductForm: React.FC<ProductFormProps> = ({
+  product,
+  images,
+  variants,
+  onProductChange,
+  onImagesChange,
+  onVariantsChange,
+  onSave,
+  onCancel,
   isEditing,
-  saving 
-}: ProductFormProps) => {
+  saving = false,
+}) => {
+  // ✅ Variant management handlers
+  const addVariant = () => {
+    const newVariant: VariantInput = {
+      id: Date.now().toString(),
+      size: sizes[0],
+      color: colors[0],
+      price: product.price,
+      stock_quantity: 0,
+      image_url: null,
+    };
+    onVariantsChange([...variants, newVariant]);
+  };
+
+  const updateVariant = (id: string, updatedFields: Partial<VariantInput>) => {
+    onVariantsChange(
+      variants.map((variant) =>
+        variant.id === id ? { ...variant, ...updatedFields } : variant
+      )
+    );
+  };
+
+  const removeVariant = (id: string) => {
+    onVariantsChange(variants.filter((variant) => variant.id !== id));
+  };
+
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
       <div className="relative p-4 w-full max-w-2xl h-full md:h-auto">
@@ -43,112 +106,207 @@ const ProductForm = ({
           >
             <X className="h-4 w-4" />
           </Button>
+
           <CardHeader>
             <CardTitle>{isEditing ? 'Edit Product' : 'Create Product'}</CardTitle>
             <CardDescription>
-              {isEditing ? 'Update product details' : 'Add a new product to your inventory'}
+              {isEditing
+                ? 'Update product details'
+                : 'Add a new product to your inventory'}
             </CardDescription>
           </CardHeader>
+
           <CardContent>
             <div className="grid gap-4">
+              {/* ✅ Image Upload */}
               <ImageUpload
                 images={images}
                 onImagesChange={onImagesChange}
                 maxImages={5}
                 maxSizePerImageMB={2}
               />
-              
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+
+              {/* ✅ Product Fields */}
+              <div>
+                <Label htmlFor="name">Product Name</Label>
                 <Input
                   id="name"
                   value={product.name}
-                  onChange={(e) => onProductChange({ ...product, name: e.target.value })}
+                  onChange={(e) =>
+                    onProductChange({ ...product, name: e.target.value })
+                  }
+                  placeholder="Enter product name"
                 />
               </div>
-              
-              <div className="space-y-2">
+
+              <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   value={product.description || ''}
-                  onChange={(e) => onProductChange({ ...product, description: e.target.value })}
+                  onChange={(e) =>
+                    onProductChange({ ...product, description: e.target.value })
+                  }
+                  placeholder="Enter product description"
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Price (₹)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    value={product.price}
-                    onChange={(e) => onProductChange({ ...product, price: parseFloat(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="offer_price">Offer Price (₹)</Label>
-                  <Input
-                    id="offer_price"
-                    type="number"
-                    value={product.offer_price || ''}
-                    onChange={(e) => onProductChange({ ...product, offer_price: e.target.value ? parseFloat(e.target.value) : null })}
-                    placeholder="Optional"
-                  />
-                </div>
+
+              <div>
+                <Label htmlFor="price">Price</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min={0}
+                  value={product.price}
+                  onChange={(e) =>
+                    onProductChange({
+                      ...product,
+                      price: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="Enter price"
+                />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="stock_quantity">Stock Quantity</Label>
-                  <Input
-                    id="stock_quantity"
-                    type="number"
-                    value={product.stock_quantity || 0}
-                    onChange={(e) => onProductChange({ ...product, stock_quantity: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select 
-                    value={product.category || ''} 
-                    onValueChange={(value) => onProductChange({ ...product, category: value as any })}
+
+              <div>
+                <Label htmlFor="offer_price">Offer Price</Label>
+                <Input
+                  id="offer_price"
+                  type="number"
+                  min={0}
+                  value={product.offer_price ?? ''}
+                  onChange={(e) =>
+                    onProductChange({
+                      ...product,
+                      offer_price: e.target.value
+                        ? parseFloat(e.target.value)
+                        : null,
+                    })
+                  }
+                  placeholder="Enter offer price (optional)"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={product.category || ''}
+                  onValueChange={(value) =>
+                    onProductChange({
+                      ...product,
+                      category: value as Product['category'],
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* ✅ Variants Section */}
+              <div className="space-y-4">
+                <Label>Variants</Label>
+
+                {variants.length === 0 && (
+                  <p className="text-sm text-gray-500">
+                    No variants added yet. Click “Add Variant” to create one.
+                  </p>
+                )}
+
+                {variants.map((variant) => (
+                  <div
+                    key={variant.id}
+                    className="grid grid-cols-5 gap-2 items-center border p-2 rounded-md"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="chicken">Chicken</SelectItem>
-                      <SelectItem value="red_meat">Red Meat</SelectItem>
-                      <SelectItem value="chilli_condiments">Chilli Condiments</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <Select
+                      value={variant.size || ''}
+                      onValueChange={(value) =>
+                        updateVariant(variant.id!, { size: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sizes.map((size) => (
+                          <SelectItem key={size} value={size}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select
+                      value={variant.color || ''}
+                      onValueChange={(value) =>
+                        updateVariant(variant.id!, { color: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colors.map((color) => (
+                          <SelectItem key={color} value={color}>
+                            {color}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Input
+                      type="number"
+                      placeholder="Price"
+                      value={variant.price ?? ''}
+                      onChange={(e) =>
+                        updateVariant(variant.id!, {
+                          price: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+
+                    <Input
+                      type="number"
+                      placeholder="Stock"
+                      value={variant.stock_quantity ?? ''}
+                      onChange={(e) =>
+                        updateVariant(variant.id!, {
+                          stock_quantity: parseInt(e.target.value) || 0,
+                        })
+                      }
+                    />
+
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => removeVariant(variant.id!)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+
+                <Button variant="outline" onClick={addVariant}>
+                  + Add Variant
+                </Button>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="featured"
-                    checked={product.featured || false}
-                    onCheckedChange={(checked) => onProductChange({ ...product, featured: checked })}
-                  />
-                  <Label htmlFor="featured">Featured Product</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is_active"
-                    checked={product.is_active || false}
-                    onCheckedChange={(checked) => onProductChange({ ...product, is_active: checked })}
-                  />
-                  <Label htmlFor="is_active">Active Product</Label>
-                </div>
-              </div>
-              
+
+              {/* ✅ Save Button */}
               <Button onClick={onSave} disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : (isEditing ? 'Update Product' : 'Create Product')}
+                {saving
+                  ? 'Saving...'
+                  : isEditing
+                  ? 'Update Product'
+                  : 'Create Product'}
               </Button>
             </div>
           </CardContent>

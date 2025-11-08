@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuthContext';
 import { useCart } from '@/hooks/useCartContext';
 import { Button } from '@/components/ui/button';
+
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart, ArrowLeft } from 'lucide-react';
@@ -51,11 +52,11 @@ export interface VariantType {
   image_url?: string | null;
   created_at?: string | null;
 }
+const navigate = useNavigate();
 
 const Product = () => {
-  const navigate = useNavigate(); // ✅ must be inside component
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { addToCart } = useCart();
   const { toast } = useToast();
 
@@ -72,7 +73,6 @@ const Product = () => {
     if (id) {
       fetchProduct();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchProduct = async () => {
@@ -93,23 +93,15 @@ const Product = () => {
         .eq('product_id', id);
 
       if (variantsError) throw variantsError;
-      const v = (variantsData || []) as VariantType[];
-      setVariants(v);
+      setVariants((variantsData || []) as VariantType[]);
 
-      // Build gallery: product main image, then product gallery, then distinct variant images
       const images: string[] = [];
       if (productData.image_url) images.push(productData.image_url);
       if (productData.image_urls && productData.image_urls.length > 0) {
         images.push(...productData.image_urls);
       }
-      const variantImages = v
-        .map(vi => vi.image_url)
-        .filter(Boolean) as string[];
-      const uniqueVariantImages = variantImages.filter(img => !images.includes(img));
-      const finalImages = [...images, ...uniqueVariantImages];
-
-      setAllImages(finalImages);
-      setSelectedImage(finalImages[0] || '');
+      setAllImages(images);
+      setSelectedImage(images[0] || '');
     } catch (error) {
       console.error('Error fetching product or variants:', error);
       toast({
@@ -122,32 +114,6 @@ const Product = () => {
     }
   };
 
-  const effectivePrice = useMemo(() => {
-    if (!product) return 0;
-    // Prefer variant price if selected, else offer_price, else price
-    return selectedVariant?.price ?? product.offer_price ?? product.price;
-  }, [product, selectedVariant]);
-
-  const hasOffer = useMemo(() => {
-    if (!product) return false;
-    return Boolean(product.offer_price && product.offer_price < product.price);
-  }, [product]);
-
-  const effectiveStock = useMemo(() => {
-    if (!product) return 0;
-    return (
-      selectedVariant?.quantity ??
-      selectedVariant?.stock_quantity ??
-      product.stock_quantity ??
-      0
-    );
-  }, [product, selectedVariant]);
-
-  const isInStock = effectiveStock > 0;
-
-  const uniqueSizes = Array.from(new Set(variants.map((v) => v.size).filter(Boolean))) as string[];
-  const uniqueColors = Array.from(new Set(variants.map((v) => v.color).filter(Boolean))) as string[];
-
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
       toast({
@@ -157,19 +123,26 @@ const Product = () => {
       });
       return;
     }
+
     if (!product) return;
 
-    if (effectiveStock < quantity) {
+    const itemToAdd = selectedVariant
+      ? selectedVariant.id
+      : product.id;
+
+    const stockAvailable =
+      selectedVariant?.quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity ?? 0;
+
+    if (stockAvailable < quantity) {
       toast({
         title: 'Out of stock',
-        description: `Only ${effectiveStock} left in stock.`,
+        description: `Only ${stockAvailable} left in stock.`,
         variant: 'destructive',
       });
       return;
     }
 
-    // ✅ Pass product.id and optional variant_id
-    await addToCart(product.id, quantity, selectedVariant?.id || undefined);
+    await addToCart(itemToAdd, quantity);
 
     toast({
       title: 'Added to cart',
@@ -180,40 +153,42 @@ const Product = () => {
   };
 
   const handleBuyNow = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: 'Please sign in',
-        description: 'You need to be signed in to buy items',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!product) return;
+  if (!isAuthenticated) {
+    toast({
+      title: 'Please sign in',
+      description: 'You need to be signed in to buy items',
+      variant: 'destructive',
+    });
+    return;
+  }
 
-    if (effectiveStock < quantity) {
-      toast({
-        title: 'Out of stock',
-        description: `Only ${effectiveStock} left in stock.`,
-        variant: 'destructive',
-      });
-      return;
-    }
+  if (!product) return;
 
-    await addToCart(product.id, quantity, selectedVariant?.id || undefined);
-    navigate('/checkout');
-  };
+  const itemToAdd = selectedVariant ? selectedVariant.id : product.id;
+  const stockAvailable =
+    selectedVariant?.quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity ?? 0;
+
+  if (stockAvailable < quantity) {
+    toast({
+      title: 'Out of stock',
+      description: `Only ${stockAvailable} left in stock.`,
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  await addToCart(itemToAdd, quantity);
+
+  // Redirect to checkout using navigate
+  navigate('/checkout');
+};
+
+
 
   const handleReviewSubmitted = () => {
     setRefreshTrigger((prev) => prev + 1);
     fetchProduct();
   };
-
-  // Change main image to variant image if variant has one (nice UX)
-  useEffect(() => {
-    if (selectedVariant?.image_url) {
-      setSelectedImage(selectedVariant.image_url);
-    }
-  }, [selectedVariant]);
 
   if (loading) {
     return (
@@ -245,6 +220,16 @@ const Product = () => {
       </Layout>
     );
   }
+
+  const effectivePrice =
+    selectedVariant?.price || product.offer_price || product.price;
+  const hasOffer = product.offer_price && product.offer_price < product.price;
+  const effectiveStock =
+    selectedVariant?.quantity ?? selectedVariant?.stock_quantity ?? product.stock_quantity ?? 0;
+  const isInStock = effectiveStock > 0;
+
+  const uniqueSizes = Array.from(new Set(variants.map((v) => v.size).filter(Boolean)));
+  const uniqueColors = Array.from(new Set(variants.map((v) => v.color).filter(Boolean)));
 
   return (
     <Layout>
@@ -308,16 +293,12 @@ const Product = () => {
                     <Select
                       value={selectedVariant?.size || ''}
                       onValueChange={(value) => {
-                        // Choose variant matching new size and existing color if set
-                        const variant =
-                          variants.find(
-                            (v) =>
-                              v.size === value &&
-                              (!selectedVariant?.color || v.color === selectedVariant.color)
-                          ) ||
-                          variants.find((v) => v.size === value) ||
-                          null;
-                        setSelectedVariant(variant);
+                        const variant = variants.find(
+                          (v) =>
+                            v.size === value &&
+                            (!selectedVariant?.color || v.color === selectedVariant.color)
+                        );
+                        setSelectedVariant(variant || null);
                       }}
                     >
                       <SelectTrigger>
@@ -347,15 +328,12 @@ const Product = () => {
                           <button
                             key={color}
                             onClick={() => {
-                              const variant =
-                                variants.find(
-                                  (v) =>
-                                    v.color === color &&
-                                    (!selectedVariant?.size || v.size === selectedVariant.size)
-                                ) ||
-                                variants.find((v) => v.color === color) ||
-                                null;
-                              setSelectedVariant(variant);
+                              const variant = variants.find(
+                                (v) =>
+                                  v.color === color &&
+                                  (!selectedVariant?.size || v.size === selectedVariant.size)
+                              );
+                              setSelectedVariant(variant || null);
                             }}
                             className={`relative w-8 h-8 rounded-full border-2 transition-all ${
                               isSelected

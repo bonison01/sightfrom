@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
@@ -55,6 +53,7 @@ export type Database = {
           },
         ]
       }
+
       banner_settings: {
         Row: {
           banner_height: number | null
@@ -118,6 +117,7 @@ export type Database = {
         }
         Relationships: []
       }
+
       cart_items: {
         Row: {
           created_at: string | null
@@ -153,6 +153,7 @@ export type Database = {
           },
         ]
       }
+
       order_items: {
         Row: {
           created_at: string | null
@@ -195,6 +196,7 @@ export type Database = {
           },
         ]
       }
+
       orders: {
         Row: {
           courier_contact: string | null
@@ -252,6 +254,7 @@ export type Database = {
         }
         Relationships: []
       }
+
       products: {
         Row: {
           category: string | null
@@ -312,6 +315,50 @@ export type Database = {
         }
         Relationships: []
       }
+
+      // ✅ NEW TABLE ADDED
+      product_variants: {
+        Row: {
+          id: string
+          product_id: string
+          color: string | null
+          size: string | null
+          price: number | null
+          stock_quantity: number | null
+          image_url: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          color?: string | null
+          size?: string | null
+          price?: number | null
+          stock_quantity?: number | null
+          image_url?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          color?: string | null
+          size?: string | null
+          price?: number | null
+          stock_quantity?: number | null
+          image_url?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+
       profiles: {
         Row: {
           address_line_1: string | null
@@ -363,6 +410,7 @@ export type Database = {
         }
         Relationships: []
       }
+
       reviews: {
         Row: {
           comment: string
@@ -415,9 +463,11 @@ export type Database = {
         ]
       }
     }
+
     Views: {
       [_ in never]: never
     }
+
     Functions: {
       check_user_is_admin: {
         Args: { check_user_id: string }
@@ -470,10 +520,12 @@ export type Database = {
         }[]
       }
     }
+
     Enums: {
       product_category: "chicken" | "red_meat" | "chilli_condiments" | "other"
       user_role: "admin" | "paying_user" | "free_user"
     }
+
     CompositeTypes: {
       [_ in never]: never
     }
@@ -596,12 +648,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      product_category: ["chicken", "red_meat", "chilli_condiments", "other"],
-      user_role: ["admin", "paying_user", "free_user"],
-    },
-  },
-} as const
