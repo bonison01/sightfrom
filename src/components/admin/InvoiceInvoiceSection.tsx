@@ -45,7 +45,7 @@ export default function InvoiceInvoiceSection({
             Invoice #: <strong>{invoice.invoice_number}</strong>
           </div>
           <div>Date: {invoice.created_at?.substring(0, 10)}</div>
-          {invoice.reference_by && <div>Reference: {invoice.reference_by}</div>}
+          {invoice.reference_name && <div>Reference: {invoice.reference_name}</div>}
         </div>
       </div>
 

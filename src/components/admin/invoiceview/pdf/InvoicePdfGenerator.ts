@@ -72,8 +72,8 @@ y += addr.length * 12;
   doc.text(`Invoice #: ${invoice.invoice_number}`, rightX, margin + 20);
   doc.text(`Date: ${invoiceDate}`, rightX, margin + 34);
 
-  if (invoice.reference_by) {
-    doc.text(`Reference: ${invoice.reference_by}`, rightX, margin + 48);
+  if (invoice.reference_name) {
+    doc.text(`Reference: ${invoice.reference_name}`, rightX, margin + 48);
   }
 
   // ============================================================

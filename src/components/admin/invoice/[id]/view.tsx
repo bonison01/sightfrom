@@ -70,7 +70,7 @@ export default function InvoiceView() {
             <div className="font-semibold text-lg">INVOICE</div>
             <div>Invoice #: {invoice.invoice_number}</div>
             <div>Date: {invoice.created_at?.substring(0, 10)}</div>
-            {invoice.reference_by && <div>Reference: {invoice.reference_by}</div>}
+            {invoice.reference_name && <div>Reference: {invoice.reference_name}</div>}
           </div>
         </div>
 
