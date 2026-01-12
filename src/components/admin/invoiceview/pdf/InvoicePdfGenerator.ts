@@ -29,18 +29,30 @@ export async function generateInvoicePdf({ invoice, items, company, branding }) 
   // HEADER
   // ============================================================
   doc.setFont("Inter", "bold");
-  doc.setFontSize(18);
-  doc.text(company?.name || "Company Name", margin, y);
+doc.setFontSize(18);
+doc.text(company?.name || "Safe Sight Eye Care", margin, y);
 
-  doc.setFont("Inter", "normal");
-  doc.setFontSize(10);
-  y += 16;
+doc.setFont("Inter", "normal");
+doc.setFontSize(10);
+y += 16;
 
-  if (company?.address) {
-    const addr = doc.splitTextToSize(company.address, pageWidth - margin * 2);
-    doc.text(addr, margin, y);
-    y += addr.length * 12;
-  }
+// Fixed Company Address
+const companyAddress = `
+Thoubal Babu Bazar, Thoubal,
+Manipur - 795138
+Phone: 8787222312
+GSTIN :
+`.trim();
+
+// Auto wrap address text
+const addr = doc.splitTextToSize(
+  companyAddress,
+  pageWidth - margin * 2
+);
+
+doc.text(addr, margin, y);
+y += addr.length * 12;
+
 
   if (company?.phone) {
     doc.text(`Phone: ${company.phone}`, margin, y);

@@ -259,11 +259,17 @@ export default function DailyIncomePanel({
     }
 
     for (const d in map) {
-      if (invoicesByDate[d]) {
-        map[d].totalInvoice = invoicesByDate[d].totalInvoice;
-        map[d].totalOverdue = invoicesByDate[d].totalOverdue;
-      }
-    }
+  if (invoicesByDate[d]) {
+    map[d].totalInvoice = invoicesByDate[d].totalInvoice;
+
+    // ✅ Unpaid Bill (Today) = Invoice Total - Today Paid
+    map[d].totalOverdue = Math.max(
+      map[d].totalInvoice - map[d].todayPaid,
+      0
+    );
+  }
+}
+
 
     return Object.values(map).sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [filtered, invoicesByDate]);

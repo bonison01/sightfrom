@@ -28,8 +28,9 @@ export default function InvoiceInvoiceSection({
       <div className="invoice-header">
         <div style={{ maxWidth: "60%" }}>
           <div style={{ fontSize: 20, fontWeight: 700 }}>
-            {company?.name || "Company Name"}
+            {company?.name || "Safe Sight Eye Care"}
           </div>
+          <div style={{ marginTop: 6, fontSize: 12 }}>Thoubal Babu Bazar, Thoubal, Manipur-795138</div>
           {company?.address && (
             <div style={{ marginTop: 6, fontSize: 12 }}>{company.address}</div>
           )}
